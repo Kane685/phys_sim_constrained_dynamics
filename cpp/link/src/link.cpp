@@ -51,7 +51,11 @@ const Matrix3r Link::ToWorldInertia() const {
     // figure out how to convert the inertia tensor to the world frame.
     //
     // TODO.
-    return inertia_.asDiagonal();
+
+    Matrix3r I_b = inertia_.asDiagonal();
+    Matrix3r I_w = rotation_ * I_b * rotation_.transpose();
+
+    return I_w;
 }
 
 const Matrix3r Link::ToInvWorldInertia() const {
@@ -115,7 +119,19 @@ const Eigen::Matrix<real, 3, 6> Link::ComputePointJacobian(
     // are the linear and angular velocities of the link.
     //
     // TODO.
-    return Eigen::Matrix<real, 3, 6>::Zero();
+
+    // define J
+    Eigen::Matrix<real, 3, 6> J;
+    // J_v = I
+    J.block<3,3>(0,0) = Matrix3r::Identity();
+    // J_w = -[Rb]
+    Vector3r Rb = rotation_ * point;
+    // combine J_v and J_w
+    J(0,3) =     0;    J(0,4) = -Rb(2); J(0,5) =  Rb(1);
+    J(1,3) =  Rb(2);   J(1,4) =     0;  J(1,5) = -Rb(0);
+    J(2,3) = -Rb(1);   J(2,4) =  Rb(0); J(2,5) =     0;
+
+    return J;
 }
 
 const Eigen::Matrix<real, 3, 6> Link::ComputeVectorJacobian(
