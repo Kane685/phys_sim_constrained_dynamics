@@ -165,10 +165,26 @@ const SparseMatrixXr Simulator::ComputeMomentumMatrix(const real time_step,
     // row and the j-th column of the matrix.
     //
     // TODO.
-    const integer i = 0;
-    const integer j = 0;
-    const real mij = 0;
-    nonzeros.emplace_back(i, j, mij);
+    // const integer i = 0;
+    // const integer j = 0;
+    // const real mij = 0;
+    // nonzeros.emplace_back(i, j, mij);
+
+    for (int i = 0; i < link_num_; ++i) {
+        // start point of each M
+        int start = i * 6;
+    
+        // Mass
+        const real m = links_[i]->mass();
+        // did not find mass in this file
+        for (int d = 0; d < 3; ++d)
+            nonzeros.emplace_back(start + d, start + d, m);
+    
+        // Inertia
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c)
+                nonzeros.emplace_back(start + 3 + r, start + 3 + c, inertia[i](r, c));
+    }
 
     const SparseMatrixXr lhs = FromTriplet(6 * link_num_,
         6 * link_num_, nonzeros);
@@ -204,7 +220,25 @@ const VectorXr Simulator::ComputeMomentumVector(const real time_step,
     // first link, the next 6 elements for the second link, and so on. 
     //
     // TODO.
-    return VectorXr::Zero(link_num_ * 6);
+
+    VectorXr rhs = VectorXr::Zero(link_num_*6);
+    for (int i=0;i<link_num_;++i){
+        // define variables needed
+        const real m = links_[i]->mass();
+        const Vector3r& v = links_[i]->v();
+        const Vector3r& w = links_[i]->omega();
+        const Vector3r& f = links_[i]->f();
+        const Vector3r& tau = links_[i]->tau();
+
+        // calculate linear velocity and rotational velocity
+        Vector3r linear_part = h*f + m*v;
+        Vector3r angular_part = h*tau + inertia[i]*w;
+
+        // get rhs
+        rhs.segment<3>(i*6+0) = linear_part;
+        rhs.segment<3>(i*6+3) = angular_part;
+    }
+    return rhs;
 }
 
 const SparseMatrixXr Simulator::ComputeJointConstraintJacobianMatrix(
