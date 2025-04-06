@@ -31,7 +31,17 @@ const VectorXr BinaryHingeJoint::phi(const link::LinkGroup& q) const {
     // Reading the phi functions in other joint classes may be helpful.
     //
     // TODO.
-    return Vector6r::Zero();
+
+    // set empty 6-dimension vector
+    Vector6r phi; phi.setZero();
+    // define constraint function
+    phi.segment<3>(0) = q[0]->ToWorldPoint(first_attach_point_)
+                  - q[1]->ToWorldPoint(second_attach_point_);
+
+    phi.segment<3>(3) = q[0]->ToWorldPoint(first_attach_point_+first_attach_direction_)
+                  - q[1]->ToWorldPoint(second_attach_point_+second_attach_direction_);
+
+    return phi;
 }
 
 const std::vector<MatrixX6r> BinaryHingeJoint::Jphi(
@@ -52,6 +62,12 @@ const std::vector<MatrixX6r> BinaryHingeJoint::Jphi(
     // other joint classes can also be helpful.
     //
     // TODO.
+
+    J[0].topRows(3) = q[0]->ComputePointJacobian(first_attach_point_);
+    J[0].bottomRows(3) = q[0]->ComputePointJacobian(first_attach_point_ + first_attach_direction_);
+    J[1].topRows(3) = -q[1]->ComputePointJacobian(second_attach_point_);
+    J[1].bottomRows(3) = -q[1]->ComputePointJacobian(second_attach_point_ + second_attach_direction_);
+        
     return J;
 }
 
