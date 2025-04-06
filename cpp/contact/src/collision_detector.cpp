@@ -137,6 +137,42 @@ const CollisionEventGroup DetectSphereBoxCollisions(
     //   supplementary reading materials.
     //
     // TODO.
+
+    // center of sphere in world frame
+    Vector3r sphere_center = sphere_transformation.first*sphere->c()
+    +sphere_transformation.second;
+    // transform sphere center to box frame
+    Matrix3r box_world_R = box_transformation.first * box->R();
+    Vector3r box_world_t = box_transformation.second + box_transformation.first * box->t();
+    Matrix3r box_world_R_inv = box_world_R.transpose();
+    Vector3r sphere_center_box_local = box_world_R_inv * (sphere_center - box_world_t);
+    // collision detection
+    Vector3r half_size = box->s() * 0.5;
+    Vector3r closest_local;
+    closest_local.x() = std::max(-half_size.x(), std::min(sphere_center_box_local.x(), half_size.x()));
+    closest_local.y() = std::max(-half_size.y(), std::min(sphere_center_box_local.y(), half_size.y()));
+    closest_local.z() = std::max(-half_size.z(), std::min(sphere_center_box_local.z(), half_size.z()));
+    Vector3r closest_world = box_world_R * closest_local + box_world_t;
+    Vector3r diff = sphere_center - closest_world;
+    real dist_sq = diff.squaredNorm();
+    real sphere_radius = sphere->radius();
+    if (dist_sq < sphere_radius * sphere_radius) {
+        real dist = std::sqrt(dist_sq);
+
+        CollisionEvent event;
+        // get collision point
+        event.collision_point = closest_world;
+        // get penetration distance
+        event.distance = dist - sphere_radius;
+        // get local frame
+        Vector3r normal;
+        normal = diff / dist;
+        event.local_frame.col(2) = normal;
+        event.local_frame.col(0) = event.local_frame.col(2).cross(Vector3r::UnitX()).normalized();
+        event.local_frame.col(1) = event.local_frame.col(2).cross(event.local_frame.col(0));
+        info.push_back(event);
+    }
+
     return info;
 }
 
@@ -197,7 +233,27 @@ const CollisionEventGroup DetectSpherePlaneCollisions(
     //   that the sphere collides with the plane.
     //
     // TODO.
-    return info;
+    
+    // center of sphere in world frame
+    Vector3r sphere_center = sphere_transformation.first*sphere->c()
+    +sphere_transformation.second;
+    // normal of plane 
+    Vector3r plane_normal = (second_transformation.first * plane->n()).normalized();
+    Vector3r plane_point = plane_transformation.second;
+    real signed_distance = (sphere_center - plane_point).dot(plane_normal);
+    if (signed_distance < sphere->r()){
+        CollisionEvent event;
+        // get collision point
+        event.collision_point = sphere_center - plane_normal*sphere->r();
+        // geSt local frame
+        event.local_frame.col(2) = (sphere_center-event.collision_point).normalized();
+        event.local_frame.col(0) = event.local_frame.col(2).cross(Vector3r::UnitX()).normalized();
+        event.local_frame.col(1) = event.local_frame.col(2).cross(event.local_frame.col(0));
+        // get penetrative distance
+        event.distance = signed_distance - sphere->r();
+        info.push_back(event);
+    }
+        return info;
 }
 
 const CollisionEventGroup DetectBoxPlaneCollisions(
