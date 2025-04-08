@@ -66,9 +66,11 @@ const std::vector<MatrixX6r> BinaryHingeJoint::Jphi(
     // TODO.
 
     J[0].topRows(3) = q[0]->ComputePointJacobian(first_attach_point_);
-    J[0].bottomRows(3) = q[0]->ComputeVectorJacobian(first_attach_point_+first_attach_direction_);
+    J[0].bottomRows(3) = q[0]->ComputeVectorJacobian(first_attach_point_+first_attach_direction_)
+                        -q[0]->ComputePointJacobian(first_attach_point_);
     J[1].topRows(3) = -q[1]->ComputePointJacobian(second_attach_point_);
-    J[1].bottomRows(3) = -q[1]->ComputeVectorJacobian(second_attach_point_+second_attach_direction_);
+    J[1].bottomRows(3) = -q[1]->ComputeVectorJacobian(second_attach_point_+second_attach_direction_)
+                        +q[1]->ComputePointJacobian(second_attach_point_);
     
     return J;
 }
